@@ -1,61 +1,47 @@
-#ifndef SHELL_H
-#define SHELL_H
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <stdbool.h>
-
-/* environment variables */
-extern char **environ;
-extern __sighandler_t signal(int __sig, __sighandler_t __handler);
-
-/* handle built ins */
-int checker(char **cmd, char *buf);
-void prompt_user(void);
-void handle_signal(int m);
-char **tokenizer(char *line);
-char *test_path(char **path, char *command);
-char *append_path(char *path, char *command);
-int handle_builtin(char **command, char *line);
-void exit_cmd(char **command, char *line);
-
-void print_env(void);
-
-/* string handlers */
-int _strcmp(char *s1, char *s2);
-int _strlen(char *s);
-int _strncmp(char *s1, char *s2, int n);
-char *_strdup(char *s);
-char *_strchr(char *s, char c);
-
-void execution(char *cp, char **cmd);
-char *find_path(void);
-
-/* helper function for efficient free */
-void free_buffers(char **buf);
-
-struct builtin
+#include "shell.h"
+/**
+ * shell - Infinite loop that runs shell
+ * @ac: Arg count
+ * @av: args passed to shell at beginning of prog
+ * @env: Environment
+ * Return: Void
+ */
+void shell(int ac, char **av, char **env)
 {
-	char *env;
-	char *exit;
-} builtin;
+	char *line;
+	char **args;
+	int status = 1;
+	char *tmp = NULL;
+	char *er;
+	char *filename;
+	int flow;
 
-struct info
-{
-	int final_exit;
-	int ln_count;
-} info;
-
-struct flags
-{
-	bool interactive;
-} flags;
-
-#endif /* SHELL_H */
+	er = "Error";
+	do {
+		prompt();
+		line = _getline();
+		args = split_line(line);
+		flow = bridge(args[0], args);
+		if (flow == 2)
+		{
+			filename = args[0];
+			args[0] = find_path(args[0], tmp, er);
+			if (args[0] == er)
+			{
+				args[0] = search_cwd(filename, er);
+				if (args[0] == filename)
+					write(1, er, 5);
+			}
+		}
+		if (args[0] != er)
+			status = execute_prog(args, line, env, flow);
+		free(line);
+		free(args);
+	} while (status);
+	if (!ac)
+		(void)ac;
+	if (!av)
+		(void)av;
+	if (!env)
+		(void)env;
+}

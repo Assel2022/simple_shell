@@ -43,4 +43,4 @@ char *read_dir(char *er, struct dirent *s, char *fi, int l, char *p, char *t);
 char *_getenv(char *env);
 char *_strstr(char *haystack, char *needle);
 int _strlen(char *s);
-#endif
+#endif /* SHELL_H */

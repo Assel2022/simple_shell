@@ -1,47 +1,50 @@
 #include "shell.h"
 /**
- * shell - Infinite loop that runs shell
- * @ac: Arg count
- * @av: args passed to shell at beginning of prog
- * @env: Environment
- * Return: Void
- */
-void shell(int ac, char **av, char **env)
-{
-	char *line;
-	char **args;
-	int status = 1;
-	char *tmp = NULL;
-	char *er;
-	char *filename;
-	int flow;
+* main - carries out the read, execute then print output loop
+* @ac: argument count
+* @av: argument vector
+* @envp: environment vector
+*
+* Return: 0
+*/
 
-	er = "Error";
-	do {
-		prompt();
-		line = _getline();
-		args = split_line(line);
-		flow = bridge(args[0], args);
-		if (flow == 2)
-		{
-			filename = args[0];
-			args[0] = find_path(args[0], tmp, er);
-			if (args[0] == er)
-			{
-				args[0] = search_cwd(filename, er);
-				if (args[0] == filename)
-					write(1, er, 5);
-			}
-		}
-		if (args[0] != er)
-			status = execute_prog(args, line, env, flow);
-		free(line);
-		free(args);
-	} while (status);
-	if (!ac)
-		(void)ac;
-	if (!av)
-		(void)av;
-	if (!env)
-		(void)env;
+int main(int ac, char **av, char *envp[])
+{
+	char *line = NULL, *pathcommand = NULL, *path = NULL;
+	size_t bufsize = 0;
+	ssize_t linesize = 0;
+	char **command = NULL, **paths = NULL;
+	(void)envp, (void)av;
+	if (ac < 1)
+		return (-1);
+	signal(SIGINT, handle_signal);
+	while (1)
+	{
+		free_buffers(command);
+		free_buffers(paths);
+		free(pathcommand);
+		prompt_user();
+		linesize = getline(&line, &bufsize, stdin);
+		if (linesize < 0)
+			break;
+		info.ln_count++;
+		if (line[linesize - 1] == '\n')
+			line[linesize - 1] = '\0';
+		command = tokenizer(line);
+		if (command == NULL || *command == NULL || **command == '\0')
+			continue;
+		if (checker(command, line))
+			continue;
+		path = find_path();
+		paths = tokenizer(path);
+		pathcommand = test_path(paths, command[0]);
+		if (!pathcommand)
+			perror(av[0]);
+		else
+			execution(pathcommand, command);
+	}
+	if (linesize < 0 && flags.interactive)
+		write(STDERR_FILENO, "\n", 1);
+	free(line);
+	return (0);
 }

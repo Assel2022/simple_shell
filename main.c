@@ -1,134 +1,119 @@
 #include "shell.h"
-
-void sig_handler(int sig);
-int execute(char **args, char **front);
-
 /**
-* sig_handler - Prints a new prompt upon a signal.
-* @sig: The signal.
-*/
-void sig_handler(int sig)
+ * _getline - gets line from STDIN and places it in the buffer
+ * @file: int assigned to the read of STDIN
+ * Return: pointer to buffer with formatted input from STDIN
+ */
+char *_getline(int file)
 {
-char *new_prompt = "\n$ ";
+	unsigned int i, index;
+	char *buffer;
+	static unsigned int buffer_size = BUFSIZE;
 
-(void)sig;
-signal(SIGINT, sig_handler);
-write(STDIN_FILENO, new_prompt, 3);
+	buffer = malloc(sizeof(char) * buffer_size);
+	if (buffer == NULL)
+	{
+		perror("malloc for buffer failed\n");
+		return (NULL);
+	}
+	index = 0;
+	_memset(buffer, '\0', buffer_size);
+	while ((i = read(file, buffer + index, buffer_size - index)) > 0)
+	{
+
+		if (i < (buffer_size - index))
+			return (buffer);
+		buffer_size *= 2;
+		_realloc(buffer, buffer_size, buffer_size / 2);
+		if (buffer == NULL)
+		{
+			perror("realloc failed\n");
+			return (NULL);
+		}
+		index += i;
+	}
+	if (i == 0)
+		_memcpy(buffer, "exit", 5);
+	return (buffer);
 }
-
 /**
-* execute - Executes a command in a child process.
-* @args: An array of arguments.
-* @front: A double pointer to the beginning of args.
-*
-* Return: If an error occurs - a corresponding error code.
-*         O/w - The exit value of the last executed command.
-*/
-int execute(char **args, char **front)
+  * parser - parses a string into tokens
+  * @str: string to parse
+  * @delimit: delimiters chosen by user
+  * Return: Double pointer to array of tokens
+  */
+char **parser(char *str, char *delimit)
 {
-pid_t child_pid;
-int status, flag = 0, ret = 0;
-char *command = args[0];
+	char **tokenized, *saveptr, *token;
+	unsigned int i, wc;
 
-if (command[0] != '/' && command[0] != '.')
-{
-flag = 1;
-command = get_location(command);
+	wc = word_count(str);
+	tokenized = malloc((wc + 1) * sizeof(char *));
+	if (!tokenized)
+	{
+		perror("malloc failed\n");
+		return (NULL);
+	}
+	tokenized[0] = token = _strtok_r(str, delimit, &saveptr);
+	for (i = 1; token; i++)
+		tokenized[i] = token = _strtok_r(NULL, delimit, &saveptr);
+	return (tokenized);
 }
-
-if (!command || (access(command, F_OK) == -1))
-{
-if (errno == EACCES)
-ret = (create_error(args, 126));
-else
-ret = (create_error(args, 127));
-}
-else
-{
-child_pid = fork();
-if (child_pid == -1)
-{
-if (flag)
-free(command);
-perror("Error child:");
-return (1);
-}
-if (child_pid == 0)
-{
-execve(command, args, environ);
-if (errno == EACCES)
-ret = (create_error(args, 126));
-free_env();
-free_args(args, front);
-free_alias_list(aliases);
-_exit(ret);
-}
-else
-{
-wait(&status);
-ret = WEXITSTATUS(status);
-}
-}
-if (flag)
-free(command);
-return (ret);
-}
-
+/** Global variable: Flag, to handle interrupt signals **/
+unsigned char sig_flag = 0;
 /**
-* main - Runs a simple UNIX command interpreter.
-* @argc: The number of arguments supplied to the program.
-* @argv: An array of pointers to the arguments.
-*
-* Return: The return value of the last executed command.
-*/
-int main(int argc, char *argv[])
+  * sighandler - handles signals from keyboard interrupts
+  * @sig: the signal caught
+  */
+static void sighandler(int sig)
 {
-int ret = 0, retn;
-int *exe_ret = &retn;
-char *prompt = "$ ", *new_line = "\n";
 
-name = argv[0];
-hist = 1;
-aliases = NULL;
-signal(SIGINT, sig_handler);
-
-*exe_ret = 0;
-environ = _copyenv();
-if (!environ)
-exit(-100);
-
-if (argc != 1)
-{
-ret = proc_file_commands(argv[1], exe_ret);
-free_env();
-free_alias_list(aliases);
-return (*exe_ret);
+	if (sig == SIGINT && sig_flag == 0)
+		simple_print("\nAnd baby says: ");
+	else if (sig_flag != 0)
+		simple_print("\n");
 }
-
-if (!isatty(STDIN_FILENO))
+/**
+  * main - entry point
+  * Return: 0 on successful termination. -1 on failure.
+  */
+int main(void)
 {
-while (ret != END_OF_FILE && ret != EXIT)
-ret = handle_args(exe_ret);
-free_env();
-free_alias_list(aliases);
-return (*exe_ret);
-}
+	char pipe_flag, *buffer, *cmds, *saveptr, **tokens;
+	env_t *linkedlist_path;
+	struct stat fstat_buf;
 
-while (1)
-{
-write(STDOUT_FILENO, prompt, 2);
-ret = handle_args(exe_ret);
-if (ret == END_OF_FILE || ret == EXIT)
-{
-if (ret == END_OF_FILE)
-write(STDOUT_FILENO, new_line, 1);
-free_env();
-free_alias_list(aliases);
-exit(*exe_ret);
-}
-}
-
-free_env();
-free_alias_list(aliases);
-return (*exe_ret);
+	if (signal(SIGINT, sighandler) == SIG_ERR)
+		perror("signal error\n");
+	if (fstat(STDIN_FILENO, &fstat_buf) == -1)
+		perror("fstat error\n"), exit(98);
+	pipe_flag = (fstat_buf.st_mode & S_IFMT) == S_IFCHR ? 0 : 1;
+	linkedlist_path = list_from_path();
+	if (linkedlist_path == NULL)
+		return (-1);
+	saveptr = NULL;
+	while (1)
+	{
+		sig_flag = 0;
+		if (pipe_flag == 0)
+			simple_print("And baby says: ");
+		buffer = _getline(STDIN_FILENO);
+		if (!buffer)
+			break;
+		cmds = _strtok_r(buffer, "\n;", &saveptr);
+		while (cmds)
+		{
+			tokens = parser(cmds, "\t ");
+			if (!tokens)
+				break;
+			if (is_builtin(tokens[0]))
+				is_builtin(tokens[0])(tokens, linkedlist_path, cmds);
+			else
+				sig_flag = 1, executor(tokens, linkedlist_path);
+			free(tokens);
+			cmds = _strtok_r(NULL, "\n;", &saveptr);
+		}
+		free(buffer);
+	}
+	return (0);
 }

@@ -20,4 +20,4 @@ env_path_t *list_from_path(void);
 void free_list(env_path_t *head);
 char *search_os(char *cmd, env_path_t *linkedlist_path);
 
-#endif
+#endif /* _ENVIRONMENT_H_ */

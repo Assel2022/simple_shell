@@ -7,4 +7,4 @@ void _alias(void);
 void history(void);
 void help(void);
 
-#endif
+#endif /* _BUILTINS_H_ */

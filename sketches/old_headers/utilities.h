@@ -10,4 +10,4 @@ void *_strdup(char *src);
 char *_strcat_realloc(char *dest, char *src);
 char *_strtok(char *str, const char *delim);
 
-#endif
+#endif /* _UTILS_H_ */

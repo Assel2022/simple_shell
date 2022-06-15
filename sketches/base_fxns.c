@@ -33,6 +33,7 @@ char **parser(char *str)
 		i++;
 	}
 	return (tokenized);
+	
 }
 /**
   * reader - reads user input and forms it into a string.

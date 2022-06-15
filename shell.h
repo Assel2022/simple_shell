@@ -1,61 +1,46 @@
-#ifndef SHELL_H
-#define SHELL_H
+#ifndef SHELL
+#define SHELL
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <string.h>
+#include <dirent.h>
+#include <stddef.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <stdbool.h>
-
-/* environment variables */
+#define TOKENS_BUFFER_SIZE 64
+#define LINE_SIZE 1024
+#define TOKEN_DELIMITERS " \t\r\n\a"
 extern char **environ;
-extern __sighandler_t signal(int __sig, __sighandler_t __handler);
-
-/* handle built ins */
-int checker(char **cmd, char *buf);
-void prompt_user(void);
-void handle_signal(int m);
-char **tokenizer(char *line);
-char *test_path(char **path, char *command);
-char *append_path(char *path, char *command);
-int handle_builtin(char **command, char *line);
-void exit_cmd(char **command, char *line);
-
-void print_env(void);
-
-/* string handlers */
+/**
+ * struct builtins - Has builtins and associated funcs
+ * @arg: Builtins name
+ * @builtin: Mathcing builtin func
+ */
+typedef struct builtins
+{
+	char *arg;
+	void (*builtin)(char **args, char *line, char **env);
+} builtins_t;
+void shell(int ac, char **av, char **env);
+char *_getline(void);
+char **split_line(char *line);
+int execute_prog(char **args, char *line, char **env, int flow);
+int check_for_builtins(char **args, char *line, char **env);
+int launch_prog(char **args);
+void exit_shell(char **args, char *line, char **env);
+void env_shell(char **args, char *line, char **env);
 int _strcmp(char *s1, char *s2);
+char *find_path(char *args, char *tmp, char *er);
+char *search_cwd(char *filename, char *er);
+int bridge(char *check, char **args);
+void prompt(void);
+int builtins_checker(char **args);
+char *save_path(char *tmp, char *path);
+char *read_dir(char *er, struct dirent *s, char *fi, int l, char *p, char *t);
+char *_getenv(char *env);
+char *_strstr(char *haystack, char *needle);
 int _strlen(char *s);
-int _strncmp(char *s1, char *s2, int n);
-char *_strdup(char *s);
-char *_strchr(char *s, char c);
-
-void execution(char *cp, char **cmd);
-char *find_path(void);
-
-/* helper function for efficient free */
-void free_buffers(char **buf);
-
-struct builtin
-{
-	char *env;
-	char *exit;
-} builtin;
-
-struct info
-{
-	int final_exit;
-	int ln_count;
-} info;
-
-struct flags
-{
-	bool interactive;
-} flags;
-
-#endif /* SHELL_H */
+#endif
